@@ -1,5 +1,6 @@
 #include <iostream>
 #include <sstream>
+#include <fstream>
 #include <algorithm>
 #include <set>
 
@@ -9,7 +10,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/epoll.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <errno.h>
+#include <signal.h>
 
 #define MAX_EVENTS 32
 
@@ -28,8 +32,100 @@ int set_nonblock(int fd)
 } 
 
 
+int is_regular_file(const char *path)
+{
+    struct stat path_stat;
+    stat(path, &path_stat);
+    return S_ISREG(path_stat.st_mode);
+}
+
+
+int
+daemonize()
+{
+    pid_t child;
+    //fork, detach from process group leader
+    if( (child=fork())<0 ) { //failed fork
+        fprintf(stderr,"error: failed fork\n");
+        exit(EXIT_FAILURE);
+    }
+    if (child>0) { //parent
+        exit(EXIT_SUCCESS);
+    }
+    if( setsid()<0 ) { //failed to become session leader
+        fprintf(stderr,"error: failed setsid\n");
+        exit(EXIT_FAILURE);
+    }
+
+    //catch/ignore signals
+    signal(SIGCHLD,SIG_IGN);
+    signal(SIGHUP,SIG_IGN);
+
+    //fork second time
+    if ( (child=fork())<0) { //failed fork
+        fprintf(stderr,"error: failed fork\n");
+        exit(EXIT_FAILURE);
+    }
+    if( child>0 ) { //parent
+        exit(EXIT_SUCCESS);
+    }
+
+    //new file permissions
+    umask(0);
+    //change to path directory
+    chdir("/");
+
+    //Close all open file descriptors
+    int fd;
+    for( fd=sysconf(_SC_OPEN_MAX); fd>0; --fd )
+    {
+        close(fd);
+    }
+
+    //reopen stdin, stdout, stderr
+    //stdin=fopen(infile,"r");   //fd=0
+    stdout=fopen("/tmp/server_out.txt","w+");  //fd=1
+    stderr=fopen("/tmp/server_err.txt","w+");  //fd=2
+
+    return(0);
+}
+
+
+
+void process_request(int fd, int i) {
+	static char Buffer[1024];
+	int RecvResult = recv(fd, Buffer, 1024, MSG_NOSIGNAL);
+	if ((RecvResult == 0) && (errno != EAGAIN)) {
+		shutdown(fd, SHUT_RDWR);
+	} else if (RecvResult > 0) {
+		send(fd, Buffer, RecvResult, MSG_NOSIGNAL);
+		std::istringstream is(Buffer);
+		std::string part;
+		while(std::getline(is, part, '\n')) {
+			std::cout << "part: " << part << std::endl;
+			if (part.find("GET") == 0) {
+				std::cout << "GET REQUEST" << std::endl;
+				size_t begin = part.find('/');
+				size_t end = part.find(' ', begin);
+				std::string path = part.substr(begin, end-begin);
+				std::cout << "Path: " << path << std::endl;
+				std::string filename = "." + path;
+				std::ifstream requested_file(filename.c_str());
+				if (is_regular_file(path.c_str())) {
+					std::cout << "200" << std::endl;
+					std::cout << "file: {" << requested_file.rdbuf() << "}" << std::endl;
+				} else{
+					std::cout << "404" << std::endl;
+				}
+
+			}
+		}
+	}
+}
+
 int main(int argc, char const* argv[])
 {
+	daemonize();
 	int MasterSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	struct sockaddr_in SockAddr;
@@ -63,21 +159,7 @@ int main(int argc, char const* argv[])
 				Event.events = EPOLLIN;
 				epoll_ctl(EPoll, EPOLL_CTL_ADD, SlaveSocket, &Event);
 			} else {
-				static char Buffer[1024];
-				int RecvResult = recv(Events[i].data.fd, Buffer, 1024, MSG_NOSIGNAL);
-				if ((RecvResult == 0) && (errno != EAGAIN)) {
-					shutdown(Events[i].data.fd, SHUT_RDWR);
-				} else if (RecvResult > 0) {
-					send(Events[i].data.fd, Buffer, RecvResult, MSG_NOSIGNAL);
-					std::istringstream is(Buffer);
-					std::string part;
-					while(std::getline(is, part, '\n')) {
-						std::cout << "part: " << part << std::endl;
-						if (part.find("GET") == 0) {
-							std::cout << "GET REQUEST" << std::endl;
-						}
-					}
-				}
+				process_request(Events[i].data.fd, i);
 			}
 		}
 	}
