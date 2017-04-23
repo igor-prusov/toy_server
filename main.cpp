@@ -113,7 +113,9 @@ void process_request(int fd, int i) {
 				std::ifstream requested_file(filename.c_str());
 				if (is_regular_file(path.c_str())) {
 					std::cout << "200" << std::endl;
-					std::cout << "file: {" << requested_file.rdbuf() << "}" << std::endl;
+					//std::cout << "file: {" << requested_file.rdbuf() << "}" << std::endl;
+					send(fd, requested_file.rdbuf(), RecvResult, MSG_NOSIGNAL);
+					send(fd, "\n\n", RecvResult, MSG_NOSIGNAL);
 				} else{
 					std::cout << "404" << std::endl;
 				}
