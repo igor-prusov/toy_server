@@ -145,7 +145,7 @@ void process_request(int fd, int i) {
 int main(int argc, char const* argv[])
 {
 	chdir("/");
-	//daemonize();
+	daemonize();
 	int MasterSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	struct sockaddr_in SockAddr;
