@@ -108,7 +108,7 @@ void process_request(int fd, int i) {
 			if (part.find("GET") == 0) {
 				std::cout << "GET REQUEST" << std::endl;
 				size_t begin = part.find('/');
-				size_t end = part.find(' ', begin);
+				size_t end = part.find_first_of("? ", begin);
 				std::string path = part.substr(begin, end-begin);
 				std::cout << "Path: " << path << std::endl;
 				std::string filename = "." + path;
@@ -117,7 +117,7 @@ void process_request(int fd, int i) {
 					std::cout << "200" << std::endl;
 					//std::cout << "file: {" << requested_file.rdbuf() << "}" << std::endl;
 					const char * OK = "HTTP/1.1 200 OK\r\n";
-					const char * content_type = "Content-Type: text/plain\r\n";
+					const char * content_type = "Content-Type: text/html\r\n";
 					std::string len_h("Content-Length: ");
 					requested_file.seekg(0, requested_file.end);
 					int f_len = requested_file.tellg();
