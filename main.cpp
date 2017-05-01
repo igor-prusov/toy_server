@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <signal.h>
+#include <string.h>
 
 #define MAX_EVENTS 32
 
@@ -114,8 +115,13 @@ void process_request(int fd, int i) {
 				if (is_regular_file(path.c_str())) {
 					std::cout << "200" << std::endl;
 					//std::cout << "file: {" << requested_file.rdbuf() << "}" << std::endl;
-					send(fd, requested_file.rdbuf(), RecvResult, MSG_NOSIGNAL);
-					send(fd, "\n\n", RecvResult, MSG_NOSIGNAL);
+					const char * OK = "HTTP/1.1 200 OK\n";
+					const char * content_type = "Content-Type: text/plain\n";
+
+					send(fd, OK, strlen(OK), MSG_NOSIGNAL);
+					send(fd, content_type, strlen(content_type), MSG_NOSIGNAL);
+					send(fd, requested_file.rdbuf(), requested_file.tellg(), MSG_NOSIGNAL);
+					send(fd, "\n\n", 2, MSG_NOSIGNAL);
 				} else{
 					std::cout << "404" << std::endl;
 				}
@@ -162,6 +168,7 @@ int main(int argc, char const* argv[])
 				epoll_ctl(EPoll, EPOLL_CTL_ADD, SlaveSocket, &Event);
 			} else {
 				process_request(Events[i].data.fd, i);
+				close(Events[i].data.fd);
 			}
 		}
 	}
