@@ -142,8 +142,31 @@ void process_request(int fd, int i) {
 	}
 }
 
-int main(int argc, char const* argv[])
+int main(int argc, char * argv[])
 {
+
+	char * addr, *port, *dir;
+
+	int c;
+	while ((c = getopt (argc, argv, "h:p:d:")) != -1)
+	{
+		switch (c)
+		{
+			case 'h':
+				addr = strdup(optarg);
+				break;
+			case 'p':
+				port = strdup(optarg);
+				break;
+			case 'd':
+				dir = strdup(optarg);
+				break;
+			default:
+				exit(0);
+		}
+
+	}
+
 	chdir("/");
 	daemonize();
 	int MasterSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -157,7 +180,7 @@ int main(int argc, char const* argv[])
 		std::cout << "Can't bind" << std::endl;
 		return -1;
 	}
-	
+
 
 	set_nonblock(MasterSocket);
 	listen(MasterSocket, SOMAXCONN);
