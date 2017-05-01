@@ -3,6 +3,7 @@
 #include <fstream>
 #include <algorithm>
 #include <set>
+#include <ios>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -99,7 +100,7 @@ void process_request(int fd, int i) {
 	if ((RecvResult == 0) && (errno != EAGAIN)) {
 		shutdown(fd, SHUT_RDWR);
 	} else if (RecvResult > 0) {
-		send(fd, Buffer, RecvResult, MSG_NOSIGNAL);
+		//send(fd, Buffer, RecvResult, MSG_NOSIGNAL);
 		std::istringstream is(Buffer);
 		std::string part;
 		while(std::getline(is, part, '\n')) {
@@ -115,16 +116,26 @@ void process_request(int fd, int i) {
 				if (is_regular_file(path.c_str())) {
 					std::cout << "200" << std::endl;
 					//std::cout << "file: {" << requested_file.rdbuf() << "}" << std::endl;
-					const char * OK = "HTTP/1.1 200 OK\n";
-					const char * content_type = "Content-Type: text/plain\n";
+					const char * OK = "HTTP/1.1 200 OK\r\n";
+					const char * content_type = "Content-Type: text/plain\r\n";
+					std::string len_h("Content-Length: ");
+					requested_file.seekg(0, requested_file.end);
+					int f_len = requested_file.tellg();
+					requested_file.seekg(0, requested_file.beg);
+					std::string len = len_h + std::to_string(f_len) + "\r\n";
+					std::stringstream s;
+					s << requested_file.rdbuf();
 
 					send(fd, OK, strlen(OK), MSG_NOSIGNAL);
 					send(fd, content_type, strlen(content_type), MSG_NOSIGNAL);
-					send(fd, requested_file.rdbuf(), requested_file.tellg(), MSG_NOSIGNAL);
-					send(fd, "\n\n", 2, MSG_NOSIGNAL);
+					send(fd, len.c_str(), len.length(), MSG_NOSIGNAL);
+					send(fd, "\r\n", 2, MSG_NOSIGNAL);
+					int res = send(fd, s.str().c_str(), f_len, MSG_NOSIGNAL);
+					//std::cout <<"Send = " << requested_file.rdbuf() << std::endl;
 				} else{
 					std::cout << "404" << std::endl;
 				}
+				requested_file.close();
 
 			}
 		}
@@ -133,7 +144,8 @@ void process_request(int fd, int i) {
 
 int main(int argc, char const* argv[])
 {
-	daemonize();
+	chdir("/");
+	//daemonize();
 	int MasterSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	struct sockaddr_in SockAddr;
