@@ -116,7 +116,7 @@ void sendFile(int fd, std::string file) {
 void send404(int fd) {
 	std::stringstream ss;
 	ss << "HTTP/1.1 404 Not Found\r\n";
-	ss << "\r\n";
+	//ss << "\r\n";
 	send(fd, ss.str().c_str(), ss.str().length(), MSG_NOSIGNAL);
 }
 
