@@ -205,7 +205,7 @@ int main(int argc, char * argv[])
 	}
 
 	chdir(dir);
-	//daemonize();
+	daemonize();
 	int MasterSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	struct sockaddr_in SockAddr;
