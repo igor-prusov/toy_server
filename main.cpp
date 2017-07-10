@@ -113,6 +113,12 @@ void sendFile(int fd, std::string file) {
 	std::cout << "len: [ " << file.length() << "]" << std::endl;
 }
 
+void send404(int fd) {
+	std::stringstream ss;
+	ss << "HTTP/1.1 404 Not Found\r\n";
+	ss << "\r\n";
+	send(fd, ss.str().c_str(), ss.str().length(), MSG_NOSIGNAL);
+}
 
 void process_request(int fd, int i) {
 	static char Buffer[1024];
@@ -135,6 +141,7 @@ void process_request(int fd, int i) {
 				if (is_regular_file(path.c_str())) {
 					sendFile(fd, readFile(path));
 				} else {
+					send404(fd);
 					std::cout << "404" << std::endl;
 				}
 				/*
