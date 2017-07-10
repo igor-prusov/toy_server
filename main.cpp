@@ -93,6 +93,26 @@ daemonize()
 }
 
 
+std::string readFile(std::string filename) {
+	std::cout << "Opening file: " << filename << std::endl;
+	std::ifstream t(filename);
+	std::string file_str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());	
+	std::cout << "File: {" << file_str  << "}" << std::endl;
+	return file_str;
+}
+
+void sendFile(int fd, std::string file) {
+	std::stringstream ss;
+	ss << "HTTP/1.1 200 OK\r\n";
+	ss << "Content-Type: text/html\r\n";
+	ss << "Content-Length: " << file.length() << "\r\n";
+	ss << "\r\n";
+	ss << file;
+	send(fd, ss.str().c_str(), ss.str().length(), MSG_NOSIGNAL);
+	//std::cout << "stream: [ " << ss.str() << "]" << std::endl;
+	std::cout << "len: [ " << file.length() << "]" << std::endl;
+}
+
 
 void process_request(int fd, int i) {
 	static char Buffer[1024];
@@ -112,11 +132,17 @@ void process_request(int fd, int i) {
 				std::string path = part.substr(begin, end-begin);
 				path = "." + path;
 				std::cout << "Path: " << path << std::endl;
+				if (is_regular_file(path.c_str())) {
+					sendFile(fd, readFile(path));
+				} else {
+					std::cout << "404" << std::endl;
+				}
+				/*
 				std::string filename = "." + path;
 				std::ifstream requested_file(filename.c_str());
 				if (is_regular_file(path.c_str())) {
 					std::cout << "200" << std::endl;
-					//std::cout << "file: {" << requested_file.rdbuf() << "}" << std::endl;
+					std::cout << "file: {" << requested_file.rdbuf() << "}" << std::endl;
 					const char * OK = "HTTP/1.1 200 OK\r\n";
 					const char * content_type = "Content-Type: text/html\r\n";
 					std::string len_h("Content-Length: ");
@@ -124,6 +150,7 @@ void process_request(int fd, int i) {
 					int f_len = requested_file.tellg();
 					requested_file.seekg(0, requested_file.beg);
 					std::string len = len_h + std::to_string(f_len) + "\r\n";
+					std::cout << "len = " << f_len << std::endl;
 					std::stringstream s;
 					s << requested_file.rdbuf();
 
@@ -137,6 +164,7 @@ void process_request(int fd, int i) {
 					std::cout << "404" << std::endl;
 				}
 				requested_file.close();
+				*/
 
 			}
 		}
