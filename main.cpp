@@ -75,7 +75,7 @@ daemonize()
     //new file permissions
     umask(0);
     //change to path directory
-    chdir("/");
+    //chdir("/");
 
     //Close all open file descriptors
     int fd;
@@ -110,6 +110,7 @@ void process_request(int fd, int i) {
 				size_t begin = part.find('/');
 				size_t end = part.find_first_of("? ", begin);
 				std::string path = part.substr(begin, end-begin);
+				path = "." + path;
 				std::cout << "Path: " << path << std::endl;
 				std::string filename = "." + path;
 				std::ifstream requested_file(filename.c_str());
@@ -145,7 +146,8 @@ void process_request(int fd, int i) {
 int main(int argc, char * argv[])
 {
 
-	char * addr, *port, *dir;
+	char * addr, *port;
+	char * dir = ".";
 
 	int c;
 	while ((c = getopt (argc, argv, "h:p:d:")) != -1)
@@ -167,7 +169,7 @@ int main(int argc, char * argv[])
 
 	}
 
-	chdir("/");
+	chdir(dir);
 	daemonize();
 	int MasterSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
