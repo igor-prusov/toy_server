@@ -98,6 +98,7 @@ std::string readFile(std::string filename) {
 	std::ifstream t(filename);
 	std::string file_str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());	
 	std::cout << "File: {" << file_str  << "}" << std::endl;
+	t.close();
 	return file_str;
 }
 
