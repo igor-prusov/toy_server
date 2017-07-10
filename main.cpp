@@ -115,7 +115,7 @@ void sendFile(int fd, std::string file) {
 
 void send404(int fd) {
 	std::stringstream ss;
-	ss << "HTTP/1.1 404 Not Found\r\n";
+	ss << "HTTP/1.0 404 Not Found\r\n";
 	//ss << "\r\n";
 	send(fd, ss.str().c_str(), ss.str().length(), MSG_NOSIGNAL);
 }
@@ -205,7 +205,7 @@ int main(int argc, char * argv[])
 	}
 
 	chdir(dir);
-	daemonize();
+	//daemonize();
 	int MasterSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	struct sockaddr_in SockAddr;
