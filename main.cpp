@@ -19,6 +19,7 @@
 
 #define MAX_EVENTS 32
 
+char * dir = ".";
 
 int set_nonblock(int fd)
 {
@@ -141,7 +142,7 @@ void process_request(int fd, int i) {
 				size_t begin = part.find('/');
 				size_t end = part.find_first_of("? ", begin);
 				std::string path = part.substr(begin, end-begin);
-				path = "." + path;
+				path = dir + path;
 				std::cout << "Path: " << path << std::endl;
 				if (is_regular_file(path.c_str())) {
 					sendFile(fd, readFile(path));
@@ -187,7 +188,6 @@ int main(int argc, char * argv[])
 {
 
 	char * addr, *port;
-	char * dir = ".";
 
 	int c;
 	while ((c = getopt (argc, argv, "h:p:d:")) != -1)
