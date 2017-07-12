@@ -6,12 +6,12 @@
 #include <ios>
 
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/epoll.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include <signal.h>
@@ -389,12 +389,14 @@ int main(int argc, char * argv[])
 					buff[0] = 'a';
 					buff[1] = '\0';
 					sock_fd_write(sv[0], buff, 1, Events[i].data.fd);
+					close(Events[i].data.fd);
 				} else {
 					printf("fork failed");
 					close(Events[i].data.fd);
 				}
 			}
 		}
+		wait(NULL);
 	}
 	return 0;
 }
