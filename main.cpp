@@ -391,8 +391,8 @@ int main(int argc, char * argv[])
 					sock_fd_write(sv[0], buff, 1, Events[i].data.fd);
 				} else {
 					printf("fork failed");
+					close(Events[i].data.fd);
 				}
-				close(Events[i].data.fd);
 			}
 		}
 	}
