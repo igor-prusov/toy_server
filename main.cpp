@@ -223,7 +223,8 @@ int main(int argc, char * argv[])
 				int * fd =(int*) malloc(sizeof(int));
 				*fd = Events[i].data.fd;
 				pthread_create(&thread, NULL, &process_request, (void*)fd);
-				pthread_detach(thread);
+				pthread_join(thread, NULL);
+				//pthread_detach(thread);
 				//process_request(Events[i].data.fd, i);
 				//close(Events[i].data.fd);
 			}
