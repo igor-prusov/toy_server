@@ -21,6 +21,122 @@
 
 char * dir = ".";
 
+
+
+ssize_t
+sock_fd_write(int sock, void *buf, ssize_t buflen, int fd)
+{
+	ssize_t     size;
+	struct msghdr   msg;
+	struct iovec    iov;
+	union {
+		struct cmsghdr  cmsghdr;
+		char        control[CMSG_SPACE(sizeof (int))];
+	} cmsgu;
+	struct cmsghdr  *cmsg;
+
+	iov.iov_base = buf;
+	iov.iov_len = buflen;
+
+	msg.msg_name = NULL;
+	msg.msg_namelen = 0;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+
+	if (fd != -1) {
+		msg.msg_control = cmsgu.control;
+		msg.msg_controllen = sizeof(cmsgu.control);
+
+		cmsg = CMSG_FIRSTHDR(&msg);
+		cmsg->cmsg_len = CMSG_LEN(sizeof (int));
+		cmsg->cmsg_level = SOL_SOCKET;
+		cmsg->cmsg_type = SCM_RIGHTS;
+
+		printf ("passing fd %d\n", fd);
+		*((int *) CMSG_DATA(cmsg)) = fd;
+	} else {
+		msg.msg_control = NULL;
+		msg.msg_controllen = 0;
+		printf ("not passing fd\n");
+	}
+
+	size = sendmsg(sock, &msg, 0);
+
+	if (size < 0)
+		perror ("sendmsg");
+	return size;
+}
+
+ssize_t
+sock_fd_read(int sock, void *buf, ssize_t bufsize, int *fd)
+{
+    ssize_t     size;
+
+    if (fd) {
+	    struct msghdr   msg;
+	    struct iovec    iov;
+	    union {
+		    struct cmsghdr  cmsghdr;
+		    char        control[CMSG_SPACE(sizeof (int))];
+	    } cmsgu;
+	    struct cmsghdr  *cmsg;
+
+	    iov.iov_base = buf;
+	    iov.iov_len = bufsize;
+
+	    msg.msg_name = NULL;
+	    msg.msg_namelen = 0;
+	    msg.msg_iov = &iov;
+	    msg.msg_iovlen = 1;
+	    msg.msg_control = cmsgu.control;
+	    msg.msg_controllen = sizeof(cmsgu.control);
+	    size = recvmsg (sock, &msg, 0);
+	    if (size < 0) {
+		    perror ("recvmsg");
+		    exit(1);
+	    }
+	    cmsg = CMSG_FIRSTHDR(&msg);
+	    if (cmsg && cmsg->cmsg_len == CMSG_LEN(sizeof(int))) {
+		    if (cmsg->cmsg_level != SOL_SOCKET) {
+			    fprintf (stderr, "invalid cmsg_level %d\n",
+					    cmsg->cmsg_level);
+			    exit(1);
+		    }
+		    if (cmsg->cmsg_type != SCM_RIGHTS) {
+			    fprintf (stderr, "invalid cmsg_type %d\n",
+					    cmsg->cmsg_type);
+			    exit(1);
+		    }
+
+		    *fd = *((int *) CMSG_DATA(cmsg));
+		    printf ("received fd %d\n", *fd);
+	    } else
+		    *fd = -1;
+    } else {
+        size = read (sock, buf, bufsize);
+        if (size < 0) {
+            perror("read");
+            exit(1);
+        }
+    }
+    return size;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 int set_nonblock(int fd)
 {
 	int flags;
@@ -182,6 +298,7 @@ void process_request(int fd, int i) {
 			}
 		}
 	}
+	//close(fd);
 	//sleep(10);
 }
 
@@ -230,13 +347,21 @@ int main(int argc, char * argv[])
 	int EPoll = epoll_create1(0);
 	struct epoll_event Event;
 	Event.data.fd = MasterSocket;
-	Event.events = EPOLLIN;
+	Event.events = EPOLLIN|EPOLLET;
 	epoll_ctl(EPoll, EPOLL_CTL_ADD, MasterSocket, &Event);
 
 	while (true) {
 		struct epoll_event Events[MAX_EVENTS];
 		int N = epoll_wait(EPoll, Events, MAX_EVENTS, -1);
+		if (N == -1) {
+			printf("Epoll error: %d\n", errno);
+			return -1;
+		}
+
+
+		printf ("N = %d\n", N);
 		for(int i = 0; i < N; i++) {
+			printf("fd = %d\n", Events[i].data.fd);
 			if (Events[i].data.fd == MasterSocket) {
 				int SlaveSocket = accept(MasterSocket, 0, 0);
 				set_nonblock(SlaveSocket);
@@ -245,11 +370,29 @@ int main(int argc, char * argv[])
 				Event.events = EPOLLIN;
 				epoll_ctl(EPoll, EPOLL_CTL_ADD, SlaveSocket, &Event);
 			} else {
+				int sv[2];
+				socketpair(AF_LOCAL, SOCK_STREAM, 0, sv);
+
 				pid_t pid = fork();
-				if (pid != 0) {
-					process_request(Events[i].data.fd, i);
+				if (pid == 0) { // Child
+					close(sv[0]);
+					char buff[16];
+					int fd;
+					sock_fd_read(sv[1], buff, sizeof(buff), &fd);
 					close(Events[i].data.fd);
+					process_request(fd, i);
+					close(fd);
+					return 0;
+				} else if (pid > 0) { // Parent
+					close(sv[1]);
+					char buff[16];
+					buff[0] = 'a';
+					buff[1] = '\0';
+					sock_fd_write(sv[0], buff, 1, Events[i].data.fd);
+				} else {
+					printf("fork failed");
 				}
+				close(Events[i].data.fd);
 			}
 		}
 	}
