@@ -190,7 +190,7 @@ int main(int argc, char * argv[])
 
 	struct sockaddr_in SockAddr;
 	SockAddr.sin_family = AF_INET;
-	SockAddr.sin_port = htons(12345);
+	SockAddr.sin_port = htons(atoi(port));
 	SockAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	int bind_result = bind(MasterSocket, (struct sockaddr *)(&SockAddr), sizeof(SockAddr));
 	if (bind_result) {
