@@ -258,7 +258,7 @@ void process_request(int fd, int i) {
 				size_t begin = part.find('/');
 				size_t end = part.find_first_of("? ", begin);
 				std::string path = part.substr(begin, end-begin);
-				path = dir + path;
+				path = "." + path;
 				std::cout << "Path: " << path << std::endl;
 				if (is_regular_file(path.c_str())) {
 					sendFile(fd, readFile(path));
