@@ -182,6 +182,7 @@ void process_request(int fd, int i) {
 			}
 		}
 	}
+	//sleep(10);
 }
 
 int main(int argc, char * argv[])
@@ -244,8 +245,11 @@ int main(int argc, char * argv[])
 				Event.events = EPOLLIN;
 				epoll_ctl(EPoll, EPOLL_CTL_ADD, SlaveSocket, &Event);
 			} else {
-				process_request(Events[i].data.fd, i);
-				close(Events[i].data.fd);
+				pid_t pid = fork();
+				if (pid != 0) {
+					process_request(Events[i].data.fd, i);
+					close(Events[i].data.fd);
+				}
 			}
 		}
 	}
