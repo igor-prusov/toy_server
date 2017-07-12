@@ -52,12 +52,12 @@ sock_fd_write(int sock, void *buf, ssize_t buflen, int fd)
 		cmsg->cmsg_level = SOL_SOCKET;
 		cmsg->cmsg_type = SCM_RIGHTS;
 
-		printf ("passing fd %d\n", fd);
+		//printf ("passing fd %d\n", fd);
 		*((int *) CMSG_DATA(cmsg)) = fd;
 	} else {
 		msg.msg_control = NULL;
 		msg.msg_controllen = 0;
-		printf ("not passing fd\n");
+		//printf ("not passing fd\n");
 	}
 
 	size = sendmsg(sock, &msg, 0);
@@ -109,7 +109,7 @@ sock_fd_read(int sock, void *buf, ssize_t bufsize, int *fd)
 		    }
 
 		    *fd = *((int *) CMSG_DATA(cmsg));
-		    printf ("received fd %d\n", *fd);
+		    //printf ("received fd %d\n", *fd);
 	    } else
 		    *fd = -1;
     } else {
@@ -211,10 +211,10 @@ daemonize()
 
 
 std::string readFile(std::string filename) {
-	std::cout << "Opening file: " << filename << std::endl;
+	//std::cout << "Opening file: " << filename << std::endl;
 	std::ifstream t(filename);
 	std::string file_str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());	
-	std::cout << "File: {" << file_str  << "}" << std::endl;
+	//std::cout << "File: {" << file_str  << "}" << std::endl;
 	t.close();
 	return file_str;
 }
@@ -227,8 +227,7 @@ void sendFile(int fd, std::string file) {
 	ss << "\r\n";
 	ss << file;
 	send(fd, ss.str().c_str(), ss.str().length(), MSG_NOSIGNAL);
-	//std::cout << "stream: [ " << ss.str() << "]" << std::endl;
-	std::cout << "len: [ " << file.length() << "]" << std::endl;
+	//std::cout << "len: [ " << file.length() << "]" << std::endl;
 }
 
 void send404(int fd) {
@@ -252,19 +251,19 @@ void process_request(int fd, int i) {
 		std::istringstream is(Buffer);
 		std::string part;
 		while(std::getline(is, part, '\n')) {
-			std::cout << "part: " << part << std::endl;
+			//std::cout << "part: " << part << std::endl;
 			if (part.find("GET") == 0) {
-				std::cout << "GET REQUEST" << std::endl;
+				//std::cout << "GET REQUEST" << std::endl;
 				size_t begin = part.find('/');
 				size_t end = part.find_first_of("? ", begin);
 				std::string path = part.substr(begin, end-begin);
 				path = "." + path;
-				std::cout << "Path: " << path << std::endl;
+				//std::cout << "Path: " << path << std::endl;
 				if (is_regular_file(path.c_str())) {
 					sendFile(fd, readFile(path));
 				} else {
 					send404(fd);
-					std::cout << "404" << std::endl;
+					//std::cout << "404" << std::endl;
 				}
 				/*
 				std::string filename = "." + path;
@@ -359,9 +358,9 @@ int main(int argc, char * argv[])
 		}
 
 
-		printf ("N = %d\n", N);
+		//printf ("N = %d\n", N);
 		for(int i = 0; i < N; i++) {
-			printf("fd = %d\n", Events[i].data.fd);
+			//printf("fd = %d\n", Events[i].data.fd);
 			if (Events[i].data.fd == MasterSocket) {
 				int SlaveSocket = accept(MasterSocket, 0, 0);
 				set_nonblock(SlaveSocket);
@@ -391,7 +390,7 @@ int main(int argc, char * argv[])
 					sock_fd_write(sv[0], buff, 1, Events[i].data.fd);
 					close(Events[i].data.fd);
 				} else {
-					printf("fork failed");
+					//printf("fork failed");
 					close(Events[i].data.fd);
 				}
 			}
