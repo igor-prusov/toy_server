@@ -16,6 +16,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <string.h>
+#include <pthread.h>
 
 #define MAX_EVENTS 32
 
@@ -95,10 +96,10 @@ daemonize()
 
 
 std::string readFile(std::string filename) {
-	std::cout << "Opening file: " << filename << std::endl;
+	//std::cout << "Opening file: " << filename << std::endl;
 	std::ifstream t(filename);
 	std::string file_str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());	
-	std::cout << "File: {" << file_str  << "}" << std::endl;
+	//std::cout << "File: {" << file_str  << "}" << std::endl;
 	t.close();
 	return file_str;
 }
@@ -111,8 +112,7 @@ void sendFile(int fd, std::string file) {
 	ss << "\r\n";
 	ss << file;
 	send(fd, ss.str().c_str(), ss.str().length(), MSG_NOSIGNAL);
-	//std::cout << "stream: [ " << ss.str() << "]" << std::endl;
-	std::cout << "len: [ " << file.length() << "]" << std::endl;
+	//std::cout << "len: [ " << file.length() << "]" << std::endl;
 }
 
 void send404(int fd) {
@@ -126,7 +126,8 @@ void send404(int fd) {
 	send(fd, ss.str().c_str(), ss.str().length(), MSG_NOSIGNAL);
 }
 
-void process_request(int fd, int i) {
+void *process_request(void* void_fd) {
+	int fd = * ((int*) void_fd);
 	static char Buffer[1024];
 	int RecvResult = recv(fd, Buffer, 1024, MSG_NOSIGNAL);
 	if ((RecvResult == 0) && (errno != EAGAIN)) {
@@ -136,52 +137,26 @@ void process_request(int fd, int i) {
 		std::istringstream is(Buffer);
 		std::string part;
 		while(std::getline(is, part, '\n')) {
-			std::cout << "part: " << part << std::endl;
+			//std::cout << "part: " << part << std::endl;
 			if (part.find("GET") == 0) {
-				std::cout << "GET REQUEST" << std::endl;
+				//std::cout << "GET REQUEST" << std::endl;
 				size_t begin = part.find('/');
 				size_t end = part.find_first_of("? ", begin);
 				std::string path = part.substr(begin, end-begin);
 				path = dir + path;
-				std::cout << "Path: " << path << std::endl;
+				//std::cout << "Path: " << path << std::endl;
 				if (is_regular_file(path.c_str())) {
 					sendFile(fd, readFile(path));
 				} else {
 					send404(fd);
-					std::cout << "404" << std::endl;
+					//std::cout << "404" << std::endl;
 				}
-				/*
-				std::string filename = "." + path;
-				std::ifstream requested_file(filename.c_str());
-				if (is_regular_file(path.c_str())) {
-					std::cout << "200" << std::endl;
-					std::cout << "file: {" << requested_file.rdbuf() << "}" << std::endl;
-					const char * OK = "HTTP/1.1 200 OK\r\n";
-					const char * content_type = "Content-Type: text/html\r\n";
-					std::string len_h("Content-Length: ");
-					requested_file.seekg(0, requested_file.end);
-					int f_len = requested_file.tellg();
-					requested_file.seekg(0, requested_file.beg);
-					std::string len = len_h + std::to_string(f_len) + "\r\n";
-					std::cout << "len = " << f_len << std::endl;
-					std::stringstream s;
-					s << requested_file.rdbuf();
-
-					send(fd, OK, strlen(OK), MSG_NOSIGNAL);
-					send(fd, content_type, strlen(content_type), MSG_NOSIGNAL);
-					send(fd, len.c_str(), len.length(), MSG_NOSIGNAL);
-					send(fd, "\r\n", 2, MSG_NOSIGNAL);
-					int res = send(fd, s.str().c_str(), f_len, MSG_NOSIGNAL);
-					//std::cout <<"Send = " << requested_file.rdbuf() << std::endl;
-				} else{
-					std::cout << "404" << std::endl;
-				}
-				requested_file.close();
-				*/
 
 			}
 		}
 	}
+	//sleep(10);
+	close(fd);
 }
 
 int main(int argc, char * argv[])
@@ -244,8 +219,13 @@ int main(int argc, char * argv[])
 				Event.events = EPOLLIN;
 				epoll_ctl(EPoll, EPOLL_CTL_ADD, SlaveSocket, &Event);
 			} else {
-				process_request(Events[i].data.fd, i);
-				close(Events[i].data.fd);
+				pthread_t thread;
+				int * fd =(int*) malloc(sizeof(int));
+				*fd = Events[i].data.fd;
+				pthread_create(&thread, NULL, &process_request, (void*)fd);
+				pthread_detach(thread);
+				//process_request(Events[i].data.fd, i);
+				//close(Events[i].data.fd);
 			}
 		}
 	}
