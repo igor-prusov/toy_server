@@ -187,7 +187,8 @@ void process_request(int fd, int i) {
 int main(int argc, char * argv[])
 {
 
-	char * addr, *port;
+	char * addr = NULL;
+	char *port = NULL;
 
 	int c;
 	while ((c = getopt (argc, argv, "h:p:d:")) != -1)
@@ -212,6 +213,16 @@ int main(int argc, char * argv[])
 	chdir(dir);
 	daemonize();
 	int MasterSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (addr)
+		std::cout << "h: " << addr << std::endl;
+	if (port)
+		std::cout << "p: " << port << std::endl;
+	if (dir)
+		std::cout << "d: " << dir << std::endl;
+
+	if (!port) {
+		port = "12345";
+	}
 
 	struct sockaddr_in SockAddr;
 	SockAddr.sin_family = AF_INET;
